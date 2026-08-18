@@ -85,11 +85,20 @@ CRITICAL INSTRUCTIONS:
       let result;
       if (isGroq) {
         const groq = createGroq({ apiKey: activeGroqKey });
-        result = await streamText({
-          model: groq("llama-3.3-70b-versatile") as any,
-          prompt,
-          temperature: 0.7,
-        });
+        // Try LLaMA models supported by Groq with fallback
+        try {
+          result = await streamText({
+            model: groq("llama-3.3-70b-versatile") as any,
+            prompt,
+            temperature: 0.7,
+          });
+        } catch {
+          result = await streamText({
+            model: groq("llama3-70b-8192") as any,
+            prompt,
+            temperature: 0.7,
+          });
+        }
       } else {
         const google = createGoogleGenerativeAI({ apiKey: googleKey });
         result = await streamText({
