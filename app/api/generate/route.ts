@@ -1,8 +1,6 @@
-import { google } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { generateMockEmailContent } from "@/lib/ai/mock-stream";
-
-export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
@@ -16,10 +14,10 @@ export async function POST(req: Request) {
       });
     }
 
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
 
     // If mock mode requested OR no Gemini API key set, return readable text stream mock
-    if (useMockMode || !apiKey || apiKey === "your_gemini_api_key_here" || apiKey.trim() === "") {
+    if (useMockMode || !apiKey || apiKey === "your_gemini_api_key_here") {
       const mockContent = generateMockEmailContent({
         topic,
         tone: tone || "professional",
@@ -52,6 +50,8 @@ export async function POST(req: Request) {
     }
 
     // Real Google Gemini AI Streaming via Vercel AI SDK
+    const google = createGoogle({ apiKey });
+
     const prompt = `You are an elite executive copywriter. Write a highly compelling email based on the following parameters:
 - Topic / Goal: ${topic}
 - Desired Tone: ${tone}

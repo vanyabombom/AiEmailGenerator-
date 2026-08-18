@@ -165,11 +165,10 @@ export default function DashboardPage() {
               </div>
               <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 ${
-                    quotaPercent >= 100
+                  className={`h-full transition-all duration-500 ${quotaPercent >= 100
                       ? "bg-gradient-to-r from-red-500 to-orange-500"
                       : "bg-gradient-to-r from-indigo-500 to-pink-500"
-                  }`}
+                    }`}
                   style={{ width: `${quotaPercent}%` }}
                 />
               </div>
