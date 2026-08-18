@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   isMockMode: boolean;
   signIn: (email: string, pass: string) => Promise<boolean>;
-  signUp: (email: string, pass: string, name: string) => Promise<boolean>;
+  signUp: (email: string, pass: string, name: string) => Promise<{ success: boolean; requiresConfirmation?: boolean }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   incrementQuota: () => boolean;
@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, pass: string, name: string): Promise<boolean> => {
+  const signUp = async (email: string, pass: string, name: string): Promise<{ success: boolean; requiresConfirmation?: boolean }> => {
     setIsLoading(true);
     if (isMockMode) {
       await new Promise((res) => setTimeout(res, 400));
@@ -209,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       saveUser(newUser);
       setIsLoading(false);
-      return true;
+      return { success: true, requiresConfirmation: false };
     } else {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
@@ -223,7 +223,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setIsLoading(false);
       if (error) throw error;
-      return !!data.user;
+      const requiresConfirmation = !data.session && !!data.user;
+      return { success: !!data.user, requiresConfirmation };
     }
   };
 

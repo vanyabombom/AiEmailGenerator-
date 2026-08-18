@@ -80,9 +80,16 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await signUp(email, password, name);
-      toast.success("Account created successfully! Redirecting to dashboard...");
-      router.push("/dashboard");
+      const result = await signUp(email, password, name);
+      if (result.requiresConfirmation) {
+        toast.info("Account created! Please check your email to confirm your registration before signing in.", {
+          duration: 8000,
+        });
+        router.push("/login");
+      } else {
+        toast.success("Account created successfully! Redirecting to dashboard...");
+        router.push("/dashboard");
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to register account";
       toast.error(message);
