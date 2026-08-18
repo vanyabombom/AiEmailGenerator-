@@ -72,7 +72,8 @@ export default function DashboardPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to initialize AI stream handler.");
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to initialize AI stream handler.");
       }
 
       const reader = response.body?.getReader();
