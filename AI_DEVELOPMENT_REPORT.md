@@ -1,32 +1,32 @@
-# 🤖 AI Development & Architecture Report — MailCraft AI MVP
+# 🤖 Отчет по ИИ-разработке и архитектуре — MailCraft AI MVP
 
-**Author**: Principal Full-Stack Engineer & AI-First Developer  
-**Date**: August 2026  
-**Project**: MailCraft AI Email Generator MVP  
-
----
-
-## 1. Executive Summary
-
-MailCraft AI is a production-grade MVP designed to eliminate writer's block and streamline business outreach. By leveraging **Next.js 14 App Router Edge Runtime**, **Vercel AI SDK**, and **Google Gemini 1.5/2.0 Flash models**, the platform achieves sub-200ms time-to-first-token streaming generation for customized email copy.
+**Автор**: Главный Full-Stack разработчик & AI-First разработчик  
+**Дата**: Август 2026  
+**Проект**: MailCraft AI Email Generator MVP  
 
 ---
 
-## 2. Technical Architecture & Component Hierarchy
+## 1. Резюме проекта
 
-### Key Architectural Layers:
-1. **Presentation Layer**: Next.js App Router with Server & Client components, styled using Tailwind CSS and Framer Motion micro-interactions.
-2. **State Management**: `AuthContext` managing session tokens, user tier metrics (Free/Pro/Enterprise), quota counters, and local storage fallback.
-3. **AI Generation Engine (`/api/generate`)**:
-   - **Streaming Mode**: Connects to `@ai-sdk/google` (`gemini-1.5-flash`) returning `ReadableStream` chunked responses.
-   - **Resilience Engine**: Detects missing or invalid API keys and automatically activates an offline streaming mock generator (`lib/ai/mock-stream.ts`) with custom typing cadence.
-4. **Data Persistence**: Supabase Auth client (`@supabase/ssr`) with fallback client storage for draft history.
+MailCraft AI — это готовый к продакшену MVP, созданный для устранения страха чистого листа и автоматизации деловой переписки. Используя **Next.js 14 App Router Edge Runtime**, **Vercel AI SDK** и модели **Google Gemini 1.5/2.0 / 3.6 Flash**, платформа обеспечивает время до первого токена (TTFT) менее 200 мс при потоковой генерации персонализированных писем.
 
 ---
 
-## 3. Prompt Engineering Strategy
+## 2. Техническая архитектура и иерархия компонентов
 
-The system prompt in `/api/generate/route.ts` is engineered for consistency and tone alignment:
+### Основные архитектурные слои:
+1. **Слой представления (Presentation Layer)**: Next.js App Router с серверными и клиентскими компонентами, стилизованными с помощью Tailwind CSS и микро-взаимодействий Framer Motion.
+2. **Управление состоянием (State Management)**: `AuthContext` для управления сессионными токенами, тарифными метриками пользователя (Free/Pro/Enterprise), счетчиками квоты и фоллбэком на локальное хранилище.
+3. **Движок генерации ИИ (`/api/generate`)**:
+   - **Потоковый режим (Streaming Mode)**: Подключается к `@ai-sdk/google` (`gemini-3.6-flash`), возвращая чанковые ответы `ReadableStream`.
+   - **Модуль отказоустойчивости (Resilience Engine)**: Определяет отсутствие или недействительность API-ключей и автоматически активирует автономный тестовый генератор (`lib/ai/mock-stream.ts`) с заданной ритмикой печати.
+4. **Хранение данных (Data Persistence)**: Клиент Supabase Auth (`@supabase/ssr`) с фоллбэком на локальное хранилище для истории черновиков.
+
+---
+
+## 3. Стратегия промпт-инжиниринга
+
+Системный промпт в `/api/generate/route.ts` спроектирован для обеспечения стабильности и точного соблюдения заданного тона:
 
 ```typescript
 const prompt = `You are an elite executive copywriter. Write a highly compelling email based on the following parameters:
@@ -46,90 +46,90 @@ Requirements:
 
 ---
 
-## 4. Key Security & Performance Metrics
+## 4. Ключевые показатели безопасности и производительности
 
-- **Zero Type Ambiguity**: 100% strict TypeScript types across all components, API routes, and state providers (zero `any`).
-- **Streaming Speed**: Average initial response latency < 250ms on Edge runtime.
-- **Graceful Error Handling**: Error boundaries, fallback mock mode toggle, Sonner toast notifications, and usage quota enforcement.
-- **Vercel Build Ready**: Evaluated with `npm run build` to confirm zero lint or compiler errors.
-
----
-
-## 5. Future Roadmap & Scaling Recommendations
-
-1. **Vector DB Context Integration**: Enable users to upload company knowledge bases or sales pitch decks into Pinecone/Supabase Vector for RAG-enhanced email personalization.
-2. **CRM Webhooks**: Direct export integrations with HubSpot, Salesforce, and Gmail via OAuth.
-3. **A/B Testing Engine**: Auto-generate 3 email subject variants with predicted open rates.
+- **Полное отсутствие нестрогих типов**: 100% строгая типизация на TypeScript во всех компонентах, API-маршрутах и провайдерах состояния (ноль `any`).
+- **Скорость потока**: Средняя задержка первого ответа < 250 мс на среде Edge.
+- **Корректная обработка ошибок**: Error boundaries, автоматическое переключение в mock-режим, всплывающие уведомления Sonner и контроль квоты использования.
+- **Готовность к сборке на Vercel**: Проверено с помощью `npm run build` — подтверждено отсутствие ошибок компиляции и линтинга.
 
 ---
 
-## 6. QA Audit & Bug Fix Report (August 18, 2026)
+## 5. Дорожная карта развития и масштабирование
 
-### Audit Scope
-End-to-end exhaustive audit covering all files across `/app`, `/components`, `/lib`, and `/types`.
+1. **Интеграция контекста из Vector DB**: Возможность загрузки корпоративных баз знаний или презентаций в Pinecone/Supabase Vector для RAG-персонализации писем.
+2. **CRM-вебхуки**: Прямой экспорт и интеграция с HubSpot, Salesforce и Gmail через OAuth.
+3. **Движок A/B тестирования**: Автоматическая генерация 3 вариантов темы письма с прогнозом процентной открываемости (Open Rate).
 
-### Issues Identified & Fixed
+---
 
-#### 🎨 Theme & Contrast (6 fixes)
-| # | Issue | Fix Applied |
+## 6. Отчет об аудите качества (QA) и исправлении ошибок (18 августа 2026)
+
+### Область аудита
+Сквозной полный аудит всех файлов в папках `/app`, `/components`, `/lib` и `/types`.
+
+### Выявленные и устранённые проблемы
+
+#### 🎨 Темы и контрастность (6 исправлений)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 1 | **Theme flash (FOUC)** on page load — ThemeProvider read localStorage in useEffect causing visible flicker from default → saved theme | Added inline `<script>` in `layout.tsx` to apply saved theme class synchronously before first paint. ThemeProvider now initializes state from localStorage directly. |
-| 2 | **Sonner toast not adapting** to active theme — toasts always used default styling regardless of dark/light mode | Created `ThemedToaster` component that reads `resolvedTheme` from ThemeProvider and passes it to Sonner's `theme` prop. |
-| 3 | **"Or with email" divider** on Login/Register pages had hardcoded `bg-white dark:bg-slate-900` background that didn't match the glass panel parent | Changed to `bg-card` which automatically adapts to the active theme via CSS variables. |
-| 4 | **Theme toggle icons** used raw `theme` state which could be "system" — would never show correct icon | Added `resolvedTheme` to ThemeProvider state. All icon displays now use `resolvedTheme` for accurate sun/moon rendering. |
-| 5 | **System theme change listener** missing — when theme is set to "system" and OS changes, UI didn't update | Added `matchMedia` change event listener in ThemeProvider when theme === "system". |
-| 6 | **Quota bar color** stays same gradient even when exhausted | Added red/orange gradient when quota reaches 100%, plus "Quota exhausted" warning text. |
+| 1 | **Мерцание темы (FOUC)** при загрузке — ThemeProvider читал localStorage в useEffect, вызывая видимое мерцание от дефолтной к сохраненной теме | Добавлен встроенный `<script>` в `layout.tsx` для синхронного применения класса темы до первого рендеринга. ThemeProvider теперь инициализирует состояние из localStorage напрямую. |
+| 2 | **Тоасты Sonner не адаптировались** к активной теме — тоасты всегда использовали стандартные стили независимо от темы | Создан компонент `ThemedToaster`, который считывает `resolvedTheme` из ThemeProvider и передает его в проп `theme` компонента Sonner. |
+| 3 | **Разделитель "Or with email"** на страницах Входа/Регистрации имел жестко заданный фон `bg-white dark:bg-slate-900`, не совпадающий с родителем | Изменено на `bg-card`, который автоматически адаптируется к активной теме через CSS-переменные. |
+| 4 | **Иконки переключателя темы** использовали сырое состояние `theme`, которое могло быть "system" — не всегда отображалась правильная иконка | Добавлено `resolvedTheme` в состояние ThemeProvider. Все иконки теперь используют `resolvedTheme` для корректного отображения солнца/луны. |
+| 5 | **Отсутствовал слушатель изменения системной темы** — когда тема установлена в "system" и меняется ОС, интерфейс не обновлялся | Добавлен слушатель событий `matchMedia` в ThemeProvider при theme === "system". |
+| 6 | **Цвет шкалы квоты** оставался одинаковым градиентом даже при исчерпании | Добавлен красно-оранжевый градиент при достижении 100% квоты и предупреждающий текст "Quota exhausted". |
 
-#### 🖱️ Smooth Scrolling & Animation (4 fixes)
-| # | Issue | Fix Applied |
+#### 🖱️ Плавный скролл и анимация (4 исправления)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 7 | **Lenis hijacking drawer/modal scroll** — History drawer and Checkout modal scrollable areas were intercepted by Lenis smooth scroll | Added `data-lenis-prevent` attributes to drawer/modal containers. Exposed `stop()/start()` via LenisContext to freeze/resume Lenis when overlays open. |
-| 8 | **Framer Motion `viewport={{ once: true }}`** — Already correctly implemented on Features, Workflow, FAQ, and CTA sections | Verified ✅ No fix needed. |
-| 9 | **`overflow-x: hidden`** — Already applied on `body` via globals.css | Verified ✅ No fix needed. |
-| 10 | **Hero demo preset race condition** — Rapid-clicking different presets would spawn multiple overlapping intervals | Added `intervalRef` to track and clear previous interval before starting new one. Added cleanup on unmount. Disabled preset buttons during generation. |
+| 7 | **Lenis перехватывал скролл в модальных окнах** — Скролл в панели истории и модальном окне оплаты перехватывался плавным скроллом Lenis | Добавлены атрибуты `data-lenis-prevent` контейнерам. Добавлены функции `stop()/start()` через LenisContext для заморозки/разморозки Lenis при открытии оверлеев. |
+| 8 | **Framer Motion `viewport={{ once: true }}`** — Ужe корректно реализовано в секциях Features, Workflow, FAQ и CTA | Проверено ✅ Правки не требуются. |
+| 9 | **`overflow-x: hidden`** — Ужe применено к `body` через globals.css | Проверено ✅ Правки не требуются. |
+| 10 | **Race condition при клике на пресеты** — Быстрые клики по пресетам в Hero создавали несколько перекрывающихся интервалов | Добавлен `intervalRef` для отслеживания и очистки предыдущего интервала перед запуском нового. Добавлена очистка при размонтировании. Кнопки пресетов блокируются во время генерации. |
 
-#### 🔐 Authentication & Mock Fallback (5 fixes)
-| # | Issue | Fix Applied |
+#### 🔐 Аутентификация и Mock-режим (5 исправлений)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 11 | **`isMockMode` detection** didn't check for `"placeholder"` in URL/key strings | Added `"placeholder"` to mock mode detection conditions. |
-| 12 | **`signOut` type mismatch** — Interface declared `() => void` but implementation was `async` | Fixed interface to `() => Promise<void>`. Updated all callers to `await signOut()`. |
-| 13 | **Form-level validation** on Login/Register used toast-only errors with no visual field indicators | Added inline `emailError`, `passwordError`, `nameError` state with red border highlights and error text below fields. |
-| 14 | **Demo credentials helper** already implemented | Verified ✅ "Auto-Fill Demo Credentials" button present on both Login and Register pages in mock mode. |
-| 15 | **Real Supabase session quota persistence** — After sign-in with real Supabase, quota/plan always reset to defaults on refresh | Added per-user localStorage key (`mailcraft_user_{id}`) to persist quota, plan, and generation count across sessions for real Supabase users. |
+| 11 | **Проверка `isMockMode`** не учитывала строку `"placeholder"` в URL/ключах | Добавлено `"placeholder"` в условия определения mock-режима. |
+| 12 | **Несоответствие типов `signOut`** — В интерфейсе объявлено `() => void`, а реализация была `async` | Исправлен интерфейс на `() => Promise<void>`. Все вызовы обновлены на `await signOut()`. |
+| 13 | **Валидация форм** Входа/Регистрации показывала ошибки только в тоастах без подсветки полей | Добавлено состояние `emailError`, `passwordError`, `nameError` с красной рамкой полей и текстом ошибки под ними. |
+| 14 | **Помощник демо-данных** уже реализован | Проверено ✅ Кнопка "Auto-Fill Demo Credentials" присутствовала на страницах Входа и Регистрации. |
+| 15 | **Сохранение квоты реальной сессии Supabase** — После входа через Supabase квота/тариф сбрасывались на дефолтные при перезагрузке | Добавлен ключ localStorage для каждого пользователя (`mailcraft_user_{id}`) для сохранения квоты, тарифа и количества генераций между сессиями. |
 
-#### 🤖 AI Engine & Streaming (4 fixes)
-| # | Issue | Fix Applied |
+#### 🤖 Движок ИИ и потоковый вывод (4 исправления)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 16 | **Empty API key check** — `GOOGLE_GENERATIVE_AI_API_KEY=""` wasn't caught (empty string passed truthiness check) | Added `apiKey.trim() === ""` check in `/api/generate/route.ts`. |
-| 17 | **Gemini API auth error fallback** — 401/403 errors from Gemini threw blank 500 error to client | Added catch block that detects API key / auth errors and falls back to mock stream generator. |
-| 18 | **Fast-click "Generate" race condition** — Multiple concurrent fetch requests could fire simultaneously | Added `AbortController` to cancel previous in-flight requests before starting new ones. AbortError is silently ignored. |
-| 19 | **Empty topic silent failure** — EmailForm's `handleSubmit` returned silently when topic was empty | Added toast error + visible red border validation state for empty topic field. |
+| 16 | **Проверка пустого API-ключа** — `GOOGLE_GENERATIVE_AI_API_KEY=""` не отлавливался (пустая строка проходила проверку truthiness) | Добавлена проверка `apiKey.trim() === ""` в `/api/generate/route.ts`. |
+| 17 | **Фоллбэк ошибок авторизации Gemini API** — Ошибки 401/403 от Gemini выдавали пустую ошибку 500 клиенту | Добавлен блок catch, который отлавливает ошибки API-ключа/авторизации и переключается на mock-генератор. |
+| 18 | **Race condition при быстром клике "Generate"** — Несколько параллельных fetch-запросов могли отправляться одновременно | Добавлен `AbortController` для отмены предыдущих незавершенных запросов перед запуском новых. Ошибка отмены игнорируется. |
+| 19 | **Молчаливый сбой при пустой теме** — `handleSubmit` в EmailForm ничего не делал при пустом поле темы | Добавлен тоаст с ошибкой + визуальная красная рамка валидации для пустого поля темы. |
 
-#### 📋 Clipboard & UX (3 fixes)
-| # | Issue | Fix Applied |
+#### 📋 Буфер обмена и UX (3 исправления)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 20 | **`navigator.clipboard.writeText`** fails silently in insecure contexts (HTTP, some browsers) | Created `copyToClipboard()` utility in `lib/utils.ts` with legacy `execCommand("copy")` fallback. Applied across Hero demo, EmailOutput, and HistoryDrawer. |
-| 21 | **Clipboard error UX** — No feedback when copy fails | Added error toast "Failed to copy — try selecting the text manually." on clipboard failure. |
-| 22 | **`calculateStats`** already imported and used for real-time word/char counter | Verified ✅ Working correctly with live updates during streaming. |
+| 20 | **`navigator.clipboard.writeText`** молча сбоил в незащищенных контекстах (HTTP, некоторые браузеры) | Создана утилита `copyToClipboard()` в `lib/utils.ts` с фоллбэком на `execCommand("copy")`. Применена в демо Hero, EmailOutput и HistoryDrawer. |
+| 21 | **UX ошибок буфера обмена** — Отсутствовал отклик при ошибке копирования | Добавлен тоаст ошибки "Failed to copy — try selecting the text manually." при сбое. |
+| 22 | **`calculateStats`** уже импортирован и использовался для счетчика слов/символов | Проверено ✅ Работает корректно с обновлением в реальном времени во время стриминга. |
 
-#### 🏗️ Build, Types & Hydration (5 fixes)
-| # | Issue | Fix Applied |
+#### 🏗️ Сборка, типы и гидратация (5 исправлений)
+| # | Проблема | Применённое решение |
 |---|-------|-------------|
-| 23 | **`any` types** in catch blocks (`err: any`) across Login, Register, Dashboard pages | Replaced all `err: any` with `err: unknown` and proper `instanceof Error` checks. |
-| 24 | **`any` type** on `options` parameter in `lib/supabase/server.ts` cookie methods | Replaced with `CookieOptions` type from `@supabase/ssr`. |
-| 25 | **Hydration mismatch** — Footer used `new Date().getFullYear()` which could differ between SSR and CSR | Moved year to `useEffect` state + `suppressHydrationWarning` fallback. Server renders static "2026", client updates to actual year. |
-| 26 | **Zero TypeScript errors** — `npx tsc --noEmit` | ✅ Passes clean with zero errors. |
-| 27 | **Production build** — `npm run build` | ✅ Compiles successfully with zero errors. All 10 pages generated. Exit code 0. |
+| 23 | **Типы `any`** в блоках catch (`err: any`) на страницах Login, Register, Dashboard | Все `err: any` заменены на `err: unknown` с надлежащей проверкой `instanceof Error`. |
+| 24 | **Тип `any`** в параметре `options` в методах куки `lib/supabase/server.ts` | Заменено на тип `CookieOptions` из `@supabase/ssr`. |
+| 25 | **Рассинхронизация гидратации** — В Footer использовался `new Date().getFullYear()`, разнящийся между SSR и CSR | Год вынесен в состояние `useEffect` + добавлена заглушка `suppressHydrationWarning`. Сервер рендерит статический "2026", клиент обновляет на текущий год. |
+| 26 | **Ноль ошибок TypeScript** — `npx tsc --noEmit` | ✅ Успешно проходит без единой ошибки. |
+| 27 | **Продакшен сборка** — `npm run build` | ✅ Успешно компилируется без ошибок. Все 10 страниц сгенерированы. Код выхода 0. |
 
-#### 💰 Pricing & Checkout (verified)
-| # | Status | Detail |
+#### 💰 Тарифы и оплата (проверено)
+| # | Статус | Детали |
 |---|--------|--------|
-| 28 | ✅ Verified | Monthly ↔ Annual billing toggle correctly updates all price displays. |
-| 29 | ✅ Verified | Checkout modal fires `canvas-confetti` on successful upgrade. |
-| 30 | ✅ Verified | `upgradePlan()` updates plan + maxQuota in state AND localStorage immediately. |
-| 31 | ✅ Verified | Profile page reflects current plan tier, quota progress, and working logout. |
+| 28 | ✅ Проверено | Переключатель Месяц ↔ Год корректно обновляет все цены. |
+| 29 | ✅ Проверено | Модальное окно оплаты запускает `canvas-confetti` при успешном апгрейде. |
+| 30 | ✅ Проверено | `upgradePlan()` мгновенно обновляет тариф + maxQuota в состоянии И в localStorage. |
+| 31 | ✅ Проверено | Страница профиля отображает текущий тариф, прогресс квоты и рабочий выход из аккаунта. |
 
-### Final Build Verification
+### Финальная проверка сборки
 
 ```
 > npx tsc --noEmit
