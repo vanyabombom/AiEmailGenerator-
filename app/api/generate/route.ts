@@ -66,22 +66,24 @@ export async function POST(req: Request) {
       });
     }
 
-    const prompt = `You are an elite, highly professional AI copywriter and email assistant. Write a high-converting, realistic email based on the following parameters:
-- Topic / Goal: ${topic}
-- Desired Tone: ${tone || "professional"}
-- Desired Length: ${length || "medium"} (Short = 2-3 concise sentences, Medium = 2-3 short structured paragraphs, Long = detailed comprehensive email)
-- Recipient Name: ${recipientName || ""}
-- Sender Name: ${senderName || ""}
-- Additional Context / Instructions: ${additionalContext || "None"}
+    // Set token bounds to prevent infinite repetition
+    const maxTokens = length === "short" ? 250 : length === "long" ? 900 : 500;
 
-CRITICAL INSTRUCTIONS:
-1. DETECT THE LANGUAGE OF THE INPUT TOPIC AND CONTEXT. IF WRITTEN IN RUSSIAN, WRITE THE ENTIRE EMAIL IN NATURAL, ELEGANT RUSSIAN. IF WRITTEN IN ENGLISH, WRITE IN ENGLISH.
-2. Always start with a catchy, relevant subject line ("Subject: ..." or "Тема: ...").
-3. Use proper paragraph line breaks and professional formatting.
-4. Match the requested tone (${tone}) accurately throughout.
-5. Do not include markdown code block ticks (\`\`\`).`;
+    const prompt = `You are a world-class professional email copywriter. Write a clean, natural, non-repetitive email based on the following:
+- Email Goal / Topic: ${topic}
+- Tone of Voice: ${tone || "professional"}
+- Length Limit: ${length || "medium"}
+- Recipient Name: ${recipientName || "there"}
+- Sender Name: ${senderName || "Best regards"}
+- Additional Details: ${additionalContext || "None"}
 
-    // GROQ AI PROVIDER WITH DYNAMIC MODEL RESOLUTION
+CRITICAL RULES:
+1. LANGUAGE: Detect the language of the topic/context. If Russian, write in fluent, natural Russian. If English, write in English.
+2. FORMAT: Start immediately with "Subject:" (or "Тема:"), followed by a greeting, 2-3 structured paragraphs, and a polite sign-off.
+3. QUALITY: NEVER repeat sentences or clauses. Keep it concise, natural, and persuasive.
+4. DO NOT include markdown backticks or internal reasoning tags.`;
+
+    // GROQ AI PROVIDER
     if (isGroq) {
       const groq = new Groq({ apiKey: activeGroqKey });
 
@@ -92,32 +94,35 @@ CRITICAL INSTRUCTIONS:
         if (availableModels?.data && availableModels.data.length > 0) {
           const modelIds = availableModels.data.map((m) => m.id);
           console.log("Groq available models for key:", modelIds);
+
+          // Prefer standard chat models over reasoning models to avoid <think> tags & endless loops
+          const preferred = modelIds.find((id) => id.includes("llama-3.3") || id.includes("mixtral") || id.includes("gemma2"));
+          const fallbackStandard = modelIds.find((id) => !id.includes("r1") && !id.includes("think"));
           
-          // Select best matching model from available ones
-          const best = modelIds.find((id) => id.includes("llama-3.3") || id.includes("mixtral") || id.includes("gemma2"));
-          if (best) {
-            targetModel = best;
-          } else {
-            targetModel = modelIds[0];
-          }
+          targetModel = preferred || fallbackStandard || modelIds[0];
         }
       } catch (listErr) {
         console.warn("Could not list Groq models, using default candidate:", listErr);
       }
 
-      console.log("Using Groq model:", targetModel);
+      console.log("Selected Groq model:", targetModel);
 
       let chatCompletion;
       try {
         chatCompletion = await groq.chat.completions.create({
           messages: [
             {
+              role: "system",
+              content: "You are a professional email copywriter. Provide a concise, well-structured email without repeating text or outputting internal thought tags.",
+            },
+            {
               role: "user",
               content: prompt,
             },
           ],
           model: targetModel,
-          temperature: 0.7,
+          temperature: 0.6,
+          max_tokens: maxTokens,
           stream: true,
         });
       } catch (groqErr: unknown) {
@@ -130,10 +135,28 @@ CRITICAL INSTRUCTIONS:
       }
 
       const encoder = new TextEncoder();
+      let isInsideThinkBlock = false;
+
       const stream = new ReadableStream({
         async start(controller) {
           for await (const chunk of chatCompletion) {
-            const text = chunk.choices[0]?.delta?.content || "";
+            let text = chunk.choices[0]?.delta?.content || "";
+
+            // Strip out <think> ... </think> blocks from reasoning models (like DeepSeek R1)
+            if (text.includes("<think>")) {
+              isInsideThinkBlock = true;
+              text = text.split("<think>")[0];
+            }
+
+            if (isInsideThinkBlock) {
+              if (text.includes("</think>")) {
+                isInsideThinkBlock = false;
+                text = text.split("</think>")[1] || "";
+              } else {
+                text = "";
+              }
+            }
+
             if (text) {
               controller.enqueue(encoder.encode(text));
             }
@@ -157,7 +180,7 @@ CRITICAL INSTRUCTIONS:
         const result = await streamText({
           model: google("models/gemini-3.6-flash"),
           prompt,
-          temperature: 0.7,
+          temperature: 0.6,
         });
         return result.toTextStreamResponse();
       } catch (geminiError: unknown) {
