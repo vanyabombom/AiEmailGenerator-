@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
 
-    // If mock mode requested OR no Gemini API key set, return readable text stream mock
+    // If mock mode explicitly requested OR no Gemini API key set at all
     if (useMockMode || !apiKey || apiKey === "your_gemini_api_key_here") {
       const mockContent = generateMockEmailContent({
         topic,
@@ -62,19 +62,20 @@ export async function POST(req: Request) {
     // Real Google Gemini AI Streaming via Vercel AI SDK
     const google = createGoogleGenerativeAI({ apiKey });
 
-    const prompt = `You are an elite executive copywriter. Write a highly compelling email based on the following parameters:
+    const prompt = `You are an elite, highly professional AI copywriter and email assistant. Write a high-converting, realistic email based on the following parameters:
 - Topic / Goal: ${topic}
-- Desired Tone: ${tone}
-- Desired Length: ${length} (Short = 2-3 sentences, Medium = 2-3 short paragraphs, Long = comprehensive detailed structure)
-- Recipient Name: ${recipientName || "there"}
-- Sender Name: ${senderName || "Alex"}
+- Desired Tone: ${tone || "professional"}
+- Desired Length: ${length || "medium"} (Short = 2-3 concise sentences, Medium = 2-3 short structured paragraphs, Long = detailed comprehensive email)
+- Recipient Name: ${recipientName || ""}
+- Sender Name: ${senderName || ""}
 - Additional Context / Instructions: ${additionalContext || "None"}
 
-Requirements:
-1. Always start with a relevant, catchy "Subject: ..." line.
-2. Structure with clean line breaks between paragraphs.
-3. Match the chosen tone (${tone}) accurately throughout.
-4. Do not include markdown code block ticks.`;
+CRITICAL INSTRUCTIONS:
+1. DETECT THE LANGUAGE OF THE INPUT TOPIC AND CONTEXT. IF WRITTEN IN RUSSIAN, WRITE THE ENTIRE EMAIL IN NATURAL, ELEGANT RUSSIAN. IF WRITTEN IN ENGLISH, WRITE IN ENGLISH.
+2. Always start with a catchy, relevant subject line ("Subject: ..." or "Тема: ...").
+3. Use proper paragraph line breaks and professional formatting.
+4. Match the requested tone (${tone}) accurately throughout.
+5. Do not include markdown code block ticks (\`\`\`).`;
 
     const result = await streamText({
       model: google("gemini-1.5-flash"),
@@ -87,34 +88,10 @@ Requirements:
     const message = error instanceof Error ? error.message : "Failed to generate email";
     console.error("AI Generation Error:", error);
 
-    // Reliable fallback to mock stream if any Gemini API or key error occurs
-    const mockContent = generateMockEmailContent({
-      topic: bodyParams.topic || "General Email",
-      tone: (bodyParams.tone as EmailTone) || "professional",
-      length: (bodyParams.length as EmailLength) || "medium",
-      recipientName: bodyParams.recipientName,
-      senderName: bodyParams.senderName,
-      additionalContext: bodyParams.additionalContext,
-    });
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const chunks = mockContent.split(" ");
-        for (let i = 0; i < chunks.length; i++) {
-          const word = chunks[i] + (i === chunks.length - 1 ? "" : " ");
-          controller.enqueue(encoder.encode(word));
-          await new Promise((res) => setTimeout(res, 40));
-        }
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
-      },
-    });
+    // Return the actual error message so the client UI shows the exact reason
+    return new Response(
+      JSON.stringify({ error: `Gemini API Error: ${message}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
