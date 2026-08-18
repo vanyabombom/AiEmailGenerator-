@@ -83,45 +83,13 @@ CRITICAL RULES:
 3. QUALITY: NEVER repeat sentences or clauses. Keep it concise, natural, and persuasive.
 4. DO NOT include markdown backticks or internal reasoning tags.`;
 
-    // GROQ AI PROVIDER (Strictly text-only chat models)
+    // GROQ AI PROVIDER (Strictly using allam-2-7b as requested)
     if (isGroq) {
       const groq = new Groq({ apiKey: activeGroqKey });
 
-      // Strictly select standard text models, filtering out speech/whisper/audio/vision
-      let targetModel = "llama-3.3-70b-versatile";
-      try {
-        const availableModels = await groq.models.list();
-        if (availableModels?.data && availableModels.data.length > 0) {
-          // Filter out audio, whisper, speech, tts, vision, or guard models
-          const validTextModels = availableModels.data
-            .map((m) => m.id)
-            .filter(
-              (id) =>
-                !id.includes("whisper") &&
-                !id.includes("speech") &&
-                !id.includes("audio") &&
-                !id.includes("tts") &&
-                !id.includes("guard") &&
-                !id.includes("vision")
-            );
-
-          console.log("Filtered text models:", validTextModels);
-
-          const preferred = validTextModels.find(
-            (id) => id === "llama-3.3-70b-versatile" || id === "llama-3.1-8b-instant"
-          );
-
-          if (preferred) {
-            targetModel = preferred;
-          } else if (validTextModels.length > 0) {
-            targetModel = validTextModels[0];
-          }
-        }
-      } catch (listErr) {
-        console.warn("Could not list Groq models, defaulting to llama-3.3-70b-versatile:", listErr);
-      }
-
-      console.log("Using text model:", targetModel);
+      // Fixed model as requested: allam-2-7b (with llama-3.3-70b-versatile fallback if unavailable)
+      const targetModel = "allam-2-7b";
+      console.log("Using fixed Groq model:", targetModel);
 
       let chatCompletion;
       try {
@@ -141,13 +109,33 @@ CRITICAL RULES:
           max_tokens: maxTokens,
           stream: true,
         });
-      } catch (groqErr: unknown) {
-        const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
-        console.error("Groq API Execution Error:", errMsg);
-        return new Response(
-          JSON.stringify({ error: `Groq API Error: ${errMsg}` }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      } catch (errPrimary: unknown) {
+        console.warn("Primary model allam-2-7b failed, attempting llama-3.3-70b-versatile:", errPrimary);
+        try {
+          chatCompletion = await groq.chat.completions.create({
+            messages: [
+              {
+                role: "system",
+                content: "You are a professional email copywriter. Provide a concise, well-structured email.",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.6,
+            max_tokens: maxTokens,
+            stream: true,
+          });
+        } catch (groqErr: unknown) {
+          const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+          console.error("Groq API Execution Error:", errMsg);
+          return new Response(
+            JSON.stringify({ error: `Groq API Error: ${errMsg}` }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
       }
 
       const encoder = new TextEncoder();
@@ -158,7 +146,7 @@ CRITICAL RULES:
           for await (const chunk of chatCompletion) {
             let text = chunk.choices[0]?.delta?.content || "";
 
-            // Strip out <think> ... </think> blocks from reasoning models
+            // Strip out <think> ... </think> blocks if present
             if (text.includes("<think>")) {
               isInsideThinkBlock = true;
               text = text.split("<think>")[0];
