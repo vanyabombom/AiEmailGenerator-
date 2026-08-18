@@ -81,9 +81,31 @@ CRITICAL INSTRUCTIONS:
 4. Match the requested tone (${tone}) accurately throughout.
 5. Do not include markdown code block ticks (\`\`\`).`;
 
-    // REAL AI GENERATION (No silent mock interception)
+    // GROQ AI PROVIDER WITH DYNAMIC MODEL RESOLUTION
     if (isGroq) {
       const groq = new Groq({ apiKey: activeGroqKey });
+
+      // Dynamically query available models for this specific API key
+      let targetModel = "llama-3.3-70b-versatile";
+      try {
+        const availableModels = await groq.models.list();
+        if (availableModels?.data && availableModels.data.length > 0) {
+          const modelIds = availableModels.data.map((m) => m.id);
+          console.log("Groq available models for key:", modelIds);
+          
+          // Select best matching model from available ones
+          const best = modelIds.find((id) => id.includes("llama-3.3") || id.includes("mixtral") || id.includes("gemma2"));
+          if (best) {
+            targetModel = best;
+          } else {
+            targetModel = modelIds[0];
+          }
+        }
+      } catch (listErr) {
+        console.warn("Could not list Groq models, using default candidate:", listErr);
+      }
+
+      console.log("Using Groq model:", targetModel);
 
       let chatCompletion;
       try {
@@ -94,32 +116,17 @@ CRITICAL INSTRUCTIONS:
               content: prompt,
             },
           ],
-          model: "llama-3.3-70b-versatile",
+          model: targetModel,
           temperature: 0.7,
           stream: true,
         });
-      } catch (err1: unknown) {
-        console.warn("Groq llama-3.3-70b-versatile failed, trying llama-3.1-8b-instant:", err1);
-        try {
-          chatCompletion = await groq.chat.completions.create({
-            messages: [
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            model: "llama-3.1-8b-instant",
-            temperature: 0.7,
-            stream: true,
-          });
-        } catch (err2: unknown) {
-          const errMsg = err2 instanceof Error ? err2.message : String(err2);
-          console.error("Groq API Error:", errMsg);
-          return new Response(
-            JSON.stringify({ error: `Groq API Error: ${errMsg}` }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
+      } catch (groqErr: unknown) {
+        const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
+        console.error("Groq API Execution Error:", errMsg);
+        return new Response(
+          JSON.stringify({ error: `Groq API Error: ${errMsg}` }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
       }
 
       const encoder = new TextEncoder();
@@ -143,7 +150,7 @@ CRITICAL INSTRUCTIONS:
       });
     }
 
-    // Google Gemini Streaming
+    // GOOGLE GEMINI PROVIDER
     if (isGoogle) {
       try {
         const google = createGoogleGenerativeAI({ apiKey: googleKey });
