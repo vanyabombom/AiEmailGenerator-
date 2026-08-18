@@ -43,6 +43,44 @@ function checkIsMockMode(): boolean {
   return isMock;
 }
 
+function buildProfileFromSession(sessionUser: any): UserProfile {
+  const userId = sessionUser.id;
+  const storedUserData = typeof window !== "undefined" ? localStorage.getItem(`mailcraft_user_${userId}`) : null;
+  let storedPlan: UserProfile["plan"] = "free";
+  let storedGenerated = 0;
+  let storedMaxQuota = 10;
+
+  if (storedUserData) {
+    try {
+      const parsed = JSON.parse(storedUserData);
+      storedPlan = parsed.plan || "free";
+      storedGenerated = parsed.emailsGenerated ?? 0;
+      storedMaxQuota = parsed.maxQuota ?? 10;
+    } catch {
+      // use defaults
+    }
+  }
+
+  const name =
+    sessionUser.user_metadata?.full_name ||
+    sessionUser.user_metadata?.name ||
+    (sessionUser.email ? sessionUser.email.split("@")[0] : "Member");
+
+  const avatarUrl =
+    sessionUser.user_metadata?.avatar_url ||
+    sessionUser.user_metadata?.picture;
+
+  return {
+    id: userId,
+    email: sessionUser.email || "user@example.com",
+    name,
+    plan: storedPlan,
+    emailsGenerated: storedGenerated,
+    maxQuota: storedMaxQuota,
+    avatarUrl,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,63 +106,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
-          // Try to restore quota/plan from localStorage for this user
-          const storedUserData = localStorage.getItem(`mailcraft_user_${session.user.id}`);
-          let storedPlan: UserProfile["plan"] = "free";
-          let storedGenerated = 0;
-          let storedMaxQuota = 10;
-
-          if (storedUserData) {
-            try {
-              const parsed = JSON.parse(storedUserData);
-              storedPlan = parsed.plan || "free";
-              storedGenerated = parsed.emailsGenerated ?? 0;
-              storedMaxQuota = parsed.maxQuota ?? 10;
-            } catch {
-              // use defaults
-            }
-          }
-
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "user@example.com",
-            name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
-            plan: storedPlan,
-            emailsGenerated: storedGenerated,
-            maxQuota: storedMaxQuota,
-            avatarUrl: session.user.user_metadata?.avatar_url,
-          });
+          setUser(buildProfileFromSession(session.user));
         }
         setIsLoading(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
-          const storedUserData = localStorage.getItem(`mailcraft_user_${session.user.id}`);
-          let storedPlan: UserProfile["plan"] = "free";
-          let storedGenerated = 0;
-          let storedMaxQuota = 10;
-
-          if (storedUserData) {
-            try {
-              const parsed = JSON.parse(storedUserData);
-              storedPlan = parsed.plan || "free";
-              storedGenerated = parsed.emailsGenerated ?? 0;
-              storedMaxQuota = parsed.maxQuota ?? 10;
-            } catch {
-              // use defaults
-            }
-          }
-
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "user@example.com",
-            name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
-            plan: storedPlan,
-            emailsGenerated: storedGenerated,
-            maxQuota: storedMaxQuota,
-            avatarUrl: session.user.user_metadata?.avatar_url,
-          });
+          setUser(buildProfileFromSession(session.user));
         } else {
           setUser(null);
         }
