@@ -26,9 +26,10 @@ export async function POST(req: Request) {
     }
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
+    const isValidGeminiKey = apiKey.startsWith("AIzaSy");
 
-    // If mock mode explicitly requested OR no Gemini API key set at all
-    if (useMockMode || !apiKey || apiKey === "your_gemini_api_key_here") {
+    // If mock mode explicitly requested OR no valid Gemini API key set
+    if (useMockMode || !apiKey || !isValidGeminiKey || apiKey === "your_gemini_api_key_here") {
       const mockContent = generateMockEmailContent({
         topic,
         tone: (tone as EmailTone) || "professional",

@@ -2,10 +2,121 @@ import { EmailGenerateConfig } from "@/types";
 
 export function generateMockEmailContent(config: EmailGenerateConfig): string {
   const { topic, tone, length, recipientName, senderName, additionalContext } = config;
-  const recipient = recipientName || "there";
-  const sender = senderName || "Best regards,\nAlex";
-  const contextNote = additionalContext ? `\n\nContext Note: ${additionalContext}` : "";
+  const isRussian = /[а-яА-ЯёЁ]/.test(topic + (additionalContext || "") + (recipientName || "") + (senderName || ""));
+  
+  const recipient = recipientName || (isRussian ? "коллега" : "there");
+  const sender = senderName || (isRussian ? "С уважением,\nАлекс" : "Best regards,\nAlex");
+  const contextNote = additionalContext
+    ? `\n\n${isRussian ? "Дополнительный контекст:" : "Context Note:"} ${additionalContext}`
+    : "";
 
+  if (isRussian) {
+    switch (tone) {
+      case "professional":
+        return `Тема: Важно: ${topic}
+
+Уважаемый(ая) ${recipient},
+
+Надеюсь, у вас всё хорошо.
+
+Обращаюсь к вам по поводу ${topic}. Мы проанализировали текущие задачи и хотели бы согласовать ключевые шаги для успешной реализации.
+
+Основные моменты:
+- Четкий график выполнения и регулярные статусы.
+- Оптимальное распределение ресурсов по приоритетным направлениям.
+- Следующие шаги запланированы на начало следующей недели.${contextNote}
+
+Пожалуйста, сообщите, когда вам будет удобно созвониться на 10 минут для обсуждения деталей.
+
+${sender}`;
+
+      case "casual":
+        return `Тема: Коротко по поводу ${topic} 👋
+
+Привет, ${recipient}!
+
+Надеюсь, неделя проходит отлично!
+
+Хотел(а) быстро связаться по поводу ${topic}. Думаю, нам стоит оперативно сверкаться, чтобы двигаться дальше без задержек.
+
+Дай знать, когда тебе удобно обсудить!${contextNote}
+
+С наилучшими пожеланиями,
+${sender.replace("С уважением,\n", "")}`;
+
+      case "persuasive":
+      case "sales":
+        return `Тема: Отличная возможность: ${topic} 🚀
+
+Здравствуйте, ${recipient}!
+
+Хотите повысить эффективность и отклик вашей команды в этом квартале?
+
+С помощью ${topic} мы помогаем компаниям увеличивать продуктивность в 2-3 раза и сокращать время на рутину.
+
+Почему это актуально прямо сейчас:
+1. Быстрый результат с минимальными усилиями.
+2. Готовые решения под ваши задачи.
+3. Проверенное повышение конверсии.${contextNote}
+
+Будет ли вам удобно созвониться на 10-минутную демо-презентацию на этой неделе?
+
+${sender}`;
+
+      case "urgent":
+        return `Тема: СРОЧНО: Требуется решение по ${topic}
+
+Здравствуйте, ${recipient}!
+
+Пожалуйста, ознакомьтесь с приоритетным вопросом по поводу ${topic} как можно скорее.
+
+Нам необходимо ваше подтверждение, чтобы уложиться в текущий дедлайн. Задержка может повлиять на сроки сдачи проекта.${contextNote}
+
+Жду ответа при первой возможности.
+
+${sender}`;
+
+      case "friendly":
+        return `Тема: Хорошего дня! Вопрос по ${topic} 😊
+
+Привет, ${recipient}!
+
+Надеюсь, день проходит замечательно!
+
+Думал(а) о ${topic} и решил(а) написать. Буду рад(а) услышать твои мысли и обсудить, как мы можем сделать это ещё лучше.${contextNote}
+
+На связи!
+
+С наилучшими пожеланиями,
+${sender.replace("С уважением,\n", "")}`;
+
+      case "empathetic":
+        return `Тема: Касательно ситуации с ${topic}
+
+Уважаемый(ая) ${recipient},
+
+Понимаю, что работа над ${topic} требует больших усилий и внимания.
+
+Мы хотим убедиться, что у вас есть вся необходимая поддержка. Пожалуйста, дайте знать, чем мы можем помочь, чтобы облегчить задачу для вашей команды.${contextNote}
+
+Мы всегда на связи и готовы поддержать.
+
+${sender}`;
+
+      default:
+        return `Тема: Детали по проекту: ${topic}
+
+Здравствуйте, ${recipient}!
+
+Направляю вам информацию по поводу ${topic}.
+
+Буду рад(а) ответить на вопросы и согласовать следующие шаги.${contextNote}
+
+${sender}`;
+    }
+  }
+
+  // English fallback
   switch (tone) {
     case "professional":
       return `Subject: Action Required: ${topic}
