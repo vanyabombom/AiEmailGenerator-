@@ -1,12 +1,13 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { generateMockEmailContent } from "@/lib/ai/mock-stream";
+import { EmailTone, EmailLength } from "@/types";
 
 export async function POST(req: Request) {
   let bodyParams: {
     topic?: string;
-    tone?: string;
-    length?: string;
+    tone?: EmailTone;
+    length?: EmailLength;
     recipientName?: string;
     senderName?: string;
     additionalContext?: string;
@@ -30,8 +31,8 @@ export async function POST(req: Request) {
     if (useMockMode || !apiKey || apiKey === "your_gemini_api_key_here") {
       const mockContent = generateMockEmailContent({
         topic,
-        tone: tone || "professional",
-        length: length || "medium",
+        tone: (tone as EmailTone) || "professional",
+        length: (length as EmailLength) || "medium",
         recipientName,
         senderName,
         additionalContext,
@@ -89,8 +90,8 @@ Requirements:
     // Reliable fallback to mock stream if any Gemini API or key error occurs
     const mockContent = generateMockEmailContent({
       topic: bodyParams.topic || "General Email",
-      tone: bodyParams.tone || "professional",
-      length: bodyParams.length || "medium",
+      tone: (bodyParams.tone as EmailTone) || "professional",
+      length: (bodyParams.length as EmailLength) || "medium",
       recipientName: bodyParams.recipientName,
       senderName: bodyParams.senderName,
       additionalContext: bodyParams.additionalContext,
