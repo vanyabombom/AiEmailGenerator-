@@ -83,29 +83,45 @@ CRITICAL RULES:
 3. QUALITY: NEVER repeat sentences or clauses. Keep it concise, natural, and persuasive.
 4. DO NOT include markdown backticks or internal reasoning tags.`;
 
-    // GROQ AI PROVIDER
+    // GROQ AI PROVIDER (Strictly text-only chat models)
     if (isGroq) {
       const groq = new Groq({ apiKey: activeGroqKey });
 
-      // Dynamically query available models for this specific API key
+      // Strictly select standard text models, filtering out speech/whisper/audio/vision
       let targetModel = "llama-3.3-70b-versatile";
       try {
         const availableModels = await groq.models.list();
         if (availableModels?.data && availableModels.data.length > 0) {
-          const modelIds = availableModels.data.map((m) => m.id);
-          console.log("Groq available models for key:", modelIds);
+          // Filter out audio, whisper, speech, tts, vision, or guard models
+          const validTextModels = availableModels.data
+            .map((m) => m.id)
+            .filter(
+              (id) =>
+                !id.includes("whisper") &&
+                !id.includes("speech") &&
+                !id.includes("audio") &&
+                !id.includes("tts") &&
+                !id.includes("guard") &&
+                !id.includes("vision")
+            );
 
-          // Prefer standard chat models over reasoning models to avoid <think> tags & endless loops
-          const preferred = modelIds.find((id) => id.includes("llama-3.3") || id.includes("mixtral") || id.includes("gemma2"));
-          const fallbackStandard = modelIds.find((id) => !id.includes("r1") && !id.includes("think"));
-          
-          targetModel = preferred || fallbackStandard || modelIds[0];
+          console.log("Filtered text models:", validTextModels);
+
+          const preferred = validTextModels.find(
+            (id) => id === "llama-3.3-70b-versatile" || id === "llama-3.1-8b-instant"
+          );
+
+          if (preferred) {
+            targetModel = preferred;
+          } else if (validTextModels.length > 0) {
+            targetModel = validTextModels[0];
+          }
         }
       } catch (listErr) {
-        console.warn("Could not list Groq models, using default candidate:", listErr);
+        console.warn("Could not list Groq models, defaulting to llama-3.3-70b-versatile:", listErr);
       }
 
-      console.log("Selected Groq model:", targetModel);
+      console.log("Using text model:", targetModel);
 
       let chatCompletion;
       try {
@@ -142,7 +158,7 @@ CRITICAL RULES:
           for await (const chunk of chatCompletion) {
             let text = chunk.choices[0]?.delta?.content || "";
 
-            // Strip out <think> ... </think> blocks from reasoning models (like DeepSeek R1)
+            // Strip out <think> ... </think> blocks from reasoning models
             if (text.includes("<think>")) {
               isInsideThinkBlock = true;
               text = text.split("<think>")[0];
