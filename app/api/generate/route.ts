@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createGroq } from "@ai-sdk/groq";
 import { streamText } from "ai";
+import Groq from "groq-sdk";
 import { generateMockEmailContent } from "@/lib/ai/mock-stream";
 import { EmailTone, EmailLength } from "@/types";
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const groqKey = process.env.GROQ_API_KEY?.trim() || "";
     const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
 
-    // Check if the key in env starts with gsk_ (Groq) or AIzaSy (Google)
+    // Determine active provider based on key format
     const isGroq = groqKey.startsWith("gsk_") || googleKey.startsWith("gsk_");
     const isGoogle = googleKey.startsWith("AIzaSy");
     const activeGroqKey = groqKey.startsWith("gsk_") ? groqKey : googleKey.startsWith("gsk_") ? googleKey : "";
@@ -82,31 +82,70 @@ CRITICAL INSTRUCTIONS:
 5. Do not include markdown code block ticks (\`\`\`).`;
 
     try {
-      let result;
+      // 1. Groq Official SDK Streaming
       if (isGroq) {
-        const groq = createGroq({ apiKey: activeGroqKey });
-        // Try LLaMA models supported by Groq with fallback
+        const groq = new Groq({ apiKey: activeGroqKey });
+        
+        let chatCompletion;
         try {
-          result = await streamText({
-            model: groq("llama-3.3-70b-versatile") as any,
-            prompt,
+          chatCompletion = await groq.chat.completions.create({
+            messages: [
+              {
+                role: "system",
+                content: "You are an elite AI copywriter that generates high-converting emails. Detect the language of the prompt and respond in the same language (Russian or English).",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            model: "llama-3.3-70b-versatile",
             temperature: 0.7,
+            stream: true,
           });
         } catch {
-          result = await streamText({
-            model: groq("llama3-70b-8192") as any,
-            prompt,
+          // Fallback model for Groq
+          chatCompletion = await groq.chat.completions.create({
+            messages: [
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            model: "llama3-70b-8192",
             temperature: 0.7,
+            stream: true,
           });
         }
-      } else {
-        const google = createGoogleGenerativeAI({ apiKey: googleKey });
-        result = await streamText({
-          model: google("models/gemini-3.6-flash"),
-          prompt,
-          temperature: 0.7,
+
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            for await (const chunk of chatCompletion) {
+              const text = chunk.choices[0]?.delta?.content || "";
+              if (text) {
+                controller.enqueue(encoder.encode(text));
+              }
+            }
+            controller.close();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+          },
         });
       }
+
+      // 2. Google Gemini Streaming via Vercel AI SDK
+      const google = createGoogleGenerativeAI({ apiKey: googleKey });
+      const result = await streamText({
+        model: google("models/gemini-3.6-flash"),
+        prompt,
+        temperature: 0.7,
+      });
 
       return result.toTextStreamResponse();
     } catch (apiError: unknown) {
