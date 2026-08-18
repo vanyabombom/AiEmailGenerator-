@@ -66,28 +66,24 @@ export async function POST(req: Request) {
       });
     }
 
-    // Set token bounds to prevent infinite repetition
-    const maxTokens = length === "short" ? 250 : length === "long" ? 900 : 500;
-
-    const prompt = `You are a world-class professional email copywriter. Write a clean, natural, non-repetitive email based on the following:
+    const prompt = `You are a world-class professional email copywriter. Write a clean, natural, and FULLY COMPLETED email based on the following:
 - Email Goal / Topic: ${topic}
 - Tone of Voice: ${tone || "professional"}
-- Length Limit: ${length || "medium"}
-- Recipient Name: ${recipientName || "there"}
-- Sender Name: ${senderName || "Best regards"}
+- Desired Length: ${length || "medium"} (Short = 2-3 concise sentences, Medium = 2-3 short structured paragraphs, Long = detailed comprehensive email)
+- Recipient Name: ${recipientName || ""}
+- Sender Name: ${senderName || ""}
 - Additional Details: ${additionalContext || "None"}
 
 CRITICAL RULES:
-1. LANGUAGE: Detect the language of the topic/context. If Russian, write in fluent, natural Russian. If English, write in English.
-2. FORMAT: Start immediately with "Subject:" (or "Тема:"), followed by a greeting, 2-3 structured paragraphs, and a polite sign-off.
-3. QUALITY: NEVER repeat sentences or clauses. Keep it concise, natural, and persuasive.
+1. ALWAYS COMPLETE THE EMAIL: Ensure every sentence is finished and end with a polite closing signature (e.g., "С уважением," or "Best regards,"). NEVER stop mid-sentence.
+2. LANGUAGE: Detect the language of the topic/context. If Russian, write in natural, fluent Russian. If English, write in English.
+3. FORMAT: Start immediately with "Subject:" (or "Тема:"), followed by a greeting, body paragraphs, and polite sign-off.
 4. DO NOT include markdown backticks or internal reasoning tags.`;
 
     // GROQ AI PROVIDER (Strictly using allam-2-7b as requested)
     if (isGroq) {
       const groq = new Groq({ apiKey: activeGroqKey });
 
-      // Fixed model as requested: allam-2-7b (with llama-3.3-70b-versatile fallback if unavailable)
       const targetModel = "allam-2-7b";
       console.log("Using fixed Groq model:", targetModel);
 
@@ -97,7 +93,7 @@ CRITICAL RULES:
           messages: [
             {
               role: "system",
-              content: "You are a professional email copywriter. Provide a concise, well-structured email without repeating text or outputting internal thought tags.",
+              content: "You are a professional email copywriter. Always complete your thoughts and write full, finished emails with proper sign-offs.",
             },
             {
               role: "user",
@@ -106,7 +102,7 @@ CRITICAL RULES:
           ],
           model: targetModel,
           temperature: 0.6,
-          max_tokens: maxTokens,
+          max_completion_tokens: 2048,
           stream: true,
         });
       } catch (errPrimary: unknown) {
@@ -116,7 +112,7 @@ CRITICAL RULES:
             messages: [
               {
                 role: "system",
-                content: "You are a professional email copywriter. Provide a concise, well-structured email.",
+                content: "You are a professional email copywriter. Always write full, finished emails with proper sign-offs.",
               },
               {
                 role: "user",
@@ -125,7 +121,7 @@ CRITICAL RULES:
             ],
             model: "llama-3.3-70b-versatile",
             temperature: 0.6,
-            max_tokens: maxTokens,
+            max_completion_tokens: 2048,
             stream: true,
           });
         } catch (groqErr: unknown) {
