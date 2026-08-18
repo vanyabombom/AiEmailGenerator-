@@ -1,4 +1,4 @@
-import { createGoogle } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { generateMockEmailContent } from "@/lib/ai/mock-stream";
 
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     // Real Google Gemini AI Streaming via Vercel AI SDK
-    const google = createGoogle({ apiKey });
+    const google = createGoogleGenerativeAI({ apiKey });
 
     const prompt = `You are an elite executive copywriter. Write a highly compelling email based on the following parameters:
 - Topic / Goal: ${topic}
