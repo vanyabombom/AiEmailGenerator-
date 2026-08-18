@@ -30,9 +30,9 @@ const defaultDemoUser: UserProfile = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function checkIsMockMode(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return (
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const isMock = (
     !url ||
     url.includes("your-supabase-project") ||
     url.includes("placeholder") ||
@@ -40,6 +40,7 @@ function checkIsMockMode(): boolean {
     key.includes("your_supabase_anon_key") ||
     key.includes("placeholder")
   );
+  return isMock;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
