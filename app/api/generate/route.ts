@@ -103,19 +103,26 @@ CRITICAL INSTRUCTIONS:
             temperature: 0.7,
             stream: true,
           });
-        } catch {
-          // Fallback model for Groq
-          chatCompletion = await groq.chat.completions.create({
-            messages: [
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            model: "llama3-70b-8192",
-            temperature: 0.7,
-            stream: true,
-          });
+        } catch (err1: unknown) {
+          console.error("Groq primary model (llama-3.3-70b-versatile) error:", err1);
+          
+          try {
+            // Fallback model for Groq: llama-3.1-8b-instant
+            chatCompletion = await groq.chat.completions.create({
+              messages: [
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+              model: "llama-3.1-8b-instant",
+              temperature: 0.7,
+              stream: true,
+            });
+          } catch (err2: unknown) {
+            console.error("Groq fallback model (llama-3.1-8b-instant) error:", err2);
+            throw err2;
+          }
         }
 
         const encoder = new TextEncoder();
