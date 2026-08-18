@@ -78,7 +78,9 @@ CRITICAL RULES:
 1. ALWAYS COMPLETE THE EMAIL: Ensure every sentence is finished and end with a polite closing signature (e.g., "С уважением," or "Best regards,"). NEVER stop mid-sentence.
 2. LANGUAGE: Detect the language of the topic/context. If Russian, write in natural, fluent Russian. If English, write in English.
 3. FORMAT: Start immediately with "Subject:" (or "Тема:"), followed by a greeting, body paragraphs, and polite sign-off.
-4. DO NOT include markdown backticks or internal reasoning tags.`;
+4. DO NOT include markdown backticks or internal reasoning tags.
+5.QUALITY: NEVER repeat sentences or clauses. Keep it concise, natural, and persuasive.
+6.IF THE LANGUAGE IS RUSSIAN THAN NEVER ASSUME THAT PERSON IN FROM RUSSIA SO NEVER MENTION RUSSIA`;
 
     // GROQ AI PROVIDER (Strictly using allam-2-7b as requested)
     if (isGroq) {
