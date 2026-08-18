@@ -1,4 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { streamText } from "ai";
 import { generateMockEmailContent } from "@/lib/ai/mock-stream";
 import { EmailTone, EmailLength } from "@/types";
@@ -25,11 +26,16 @@ export async function POST(req: Request) {
       });
     }
 
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
-    const isValidGeminiKey = apiKey.startsWith("AIzaSy");
+    const groqKey = process.env.GROQ_API_KEY?.trim() || "";
+    const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || "";
 
-    // If mock mode explicitly requested OR no valid Gemini API key set
-    if (useMockMode || !apiKey || !isValidGeminiKey || apiKey === "your_gemini_api_key_here") {
+    // Check if the key in env starts with gsk_ (Groq) or AIzaSy (Google)
+    const isGroq = groqKey.startsWith("gsk_") || googleKey.startsWith("gsk_");
+    const isGoogle = googleKey.startsWith("AIzaSy");
+    const activeGroqKey = groqKey.startsWith("gsk_") ? groqKey : googleKey.startsWith("gsk_") ? googleKey : "";
+
+    // If mock mode explicitly requested OR no valid key is set
+    if (useMockMode || (!isGroq && !isGoogle)) {
       const mockContent = generateMockEmailContent({
         topic,
         tone: (tone as EmailTone) || "professional",
@@ -60,9 +66,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // Real Google Gemini AI Streaming via Vercel AI SDK
-    const google = createGoogleGenerativeAI({ apiKey });
-
     const prompt = `You are an elite, highly professional AI copywriter and email assistant. Write a high-converting, realistic email based on the following parameters:
 - Topic / Goal: ${topic}
 - Desired Tone: ${tone || "professional"}
@@ -79,17 +82,27 @@ CRITICAL INSTRUCTIONS:
 5. Do not include markdown code block ticks (\`\`\`).`;
 
     try {
-      const result = await streamText({
-        model: google("models/gemini-3.6-flash"),
-        prompt,
-        temperature: 0.7,
-      });
+      let result;
+      if (isGroq) {
+        const groq = createGroq({ apiKey: activeGroqKey });
+        result = await streamText({
+          model: groq("llama-3.3-70b-versatile") as any,
+          prompt,
+          temperature: 0.7,
+        });
+      } else {
+        const google = createGoogleGenerativeAI({ apiKey: googleKey });
+        result = await streamText({
+          model: google("models/gemini-3.6-flash"),
+          prompt,
+          temperature: 0.7,
+        });
+      }
 
       return result.toTextStreamResponse();
     } catch (apiError: unknown) {
-      console.warn("Gemini API stream failed, falling back to mock stream:", apiError);
-      
-      // Fallback to mock stream so UI never fails for end user
+      console.warn("AI API stream failed, falling back to mock stream:", apiError);
+
       const mockContent = generateMockEmailContent({
         topic,
         tone: (tone as EmailTone) || "professional",
@@ -129,4 +142,3 @@ CRITICAL INSTRUCTIONS:
     );
   }
 }
-
