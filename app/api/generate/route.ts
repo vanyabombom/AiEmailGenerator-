@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     const isGoogle = googleKey.startsWith("AIzaSy");
     const activeGroqKey = groqKey.startsWith("gsk_") ? groqKey : googleKey.startsWith("gsk_") ? googleKey : "";
 
-    // If mock mode explicitly requested OR no valid key is set
+    // If mock mode explicitly requested OR no valid key is configured
     if (useMockMode || (!isGroq && !isGoogle)) {
       const mockContent = generateMockEmailContent({
         topic,
@@ -81,100 +81,55 @@ CRITICAL INSTRUCTIONS:
 4. Match the requested tone (${tone}) accurately throughout.
 5. Do not include markdown code block ticks (\`\`\`).`;
 
-    try {
-      // 1. Groq Official SDK Streaming
-      if (isGroq) {
-        const groq = new Groq({ apiKey: activeGroqKey });
-        
-        let chatCompletion;
+    // REAL AI GENERATION (No silent mock interception)
+    if (isGroq) {
+      const groq = new Groq({ apiKey: activeGroqKey });
+
+      let chatCompletion;
+      try {
+        chatCompletion = await groq.chat.completions.create({
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.7,
+          stream: true,
+        });
+      } catch (err1: unknown) {
+        console.warn("Groq llama-3.3-70b-versatile failed, trying llama-3.1-8b-instant:", err1);
         try {
           chatCompletion = await groq.chat.completions.create({
             messages: [
-              {
-                role: "system",
-                content: "You are an elite AI copywriter that generates high-converting emails. Detect the language of the prompt and respond in the same language (Russian or English).",
-              },
               {
                 role: "user",
                 content: prompt,
               },
             ],
-            model: "llama-3.3-70b-versatile",
+            model: "llama-3.1-8b-instant",
             temperature: 0.7,
             stream: true,
           });
-        } catch (err1: unknown) {
-          console.error("Groq primary model (llama-3.3-70b-versatile) error:", err1);
-          
-          try {
-            // Fallback model for Groq: llama-3.1-8b-instant
-            chatCompletion = await groq.chat.completions.create({
-              messages: [
-                {
-                  role: "user",
-                  content: prompt,
-                },
-              ],
-              model: "llama-3.1-8b-instant",
-              temperature: 0.7,
-              stream: true,
-            });
-          } catch (err2: unknown) {
-            console.error("Groq fallback model (llama-3.1-8b-instant) error:", err2);
-            throw err2;
-          }
+        } catch (err2: unknown) {
+          const errMsg = err2 instanceof Error ? err2.message : String(err2);
+          console.error("Groq API Error:", errMsg);
+          return new Response(
+            JSON.stringify({ error: `Groq API Error: ${errMsg}` }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
         }
-
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-          async start(controller) {
-            for await (const chunk of chatCompletion) {
-              const text = chunk.choices[0]?.delta?.content || "";
-              if (text) {
-                controller.enqueue(encoder.encode(text));
-              }
-            }
-            controller.close();
-          },
-        });
-
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Transfer-Encoding": "chunked",
-          },
-        });
       }
-
-      // 2. Google Gemini Streaming via Vercel AI SDK
-      const google = createGoogleGenerativeAI({ apiKey: googleKey });
-      const result = await streamText({
-        model: google("models/gemini-3.6-flash"),
-        prompt,
-        temperature: 0.7,
-      });
-
-      return result.toTextStreamResponse();
-    } catch (apiError: unknown) {
-      console.warn("AI API stream failed, falling back to mock stream:", apiError);
-
-      const mockContent = generateMockEmailContent({
-        topic,
-        tone: (tone as EmailTone) || "professional",
-        length: (length as EmailLength) || "medium",
-        recipientName,
-        senderName,
-        additionalContext,
-      });
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
-          const chunks = mockContent.split(" ");
-          for (let i = 0; i < chunks.length; i++) {
-            const word = chunks[i] + (i === chunks.length - 1 ? "" : " ");
-            controller.enqueue(encoder.encode(word));
-            await new Promise((res) => setTimeout(res, 40));
+          for await (const chunk of chatCompletion) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            if (text) {
+              controller.enqueue(encoder.encode(text));
+            }
           }
           controller.close();
         },
@@ -187,6 +142,31 @@ CRITICAL INSTRUCTIONS:
         },
       });
     }
+
+    // Google Gemini Streaming
+    if (isGoogle) {
+      try {
+        const google = createGoogleGenerativeAI({ apiKey: googleKey });
+        const result = await streamText({
+          model: google("models/gemini-3.6-flash"),
+          prompt,
+          temperature: 0.7,
+        });
+        return result.toTextStreamResponse();
+      } catch (geminiError: unknown) {
+        const errMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
+        console.error("Gemini API Error:", errMsg);
+        return new Response(
+          JSON.stringify({ error: `Gemini API Error: ${errMsg}` }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    return new Response(JSON.stringify({ error: "No valid AI API key provided" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to generate email";
     console.error("AI Generation Route Error:", error);
