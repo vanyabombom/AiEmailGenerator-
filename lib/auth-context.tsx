@@ -43,6 +43,34 @@ function checkIsMockMode(): boolean {
   return isMock;
 }
 
+interface MockAccount {
+  email: string;
+  pass: string;
+  user: UserProfile;
+}
+
+function getMockAccounts(): MockAccount[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("mailcraft_mock_users");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMockAccount(account: MockAccount) {
+  if (typeof window === "undefined") return;
+  const list = getMockAccounts();
+  const index = list.findIndex((a) => a.email.toLowerCase() === account.email.toLowerCase());
+  if (index >= 0) {
+    list[index] = account;
+  } else {
+    list.push(account);
+  }
+  localStorage.setItem("mailcraft_mock_users", JSON.stringify(list));
+}
+
 function buildProfileFromSession(sessionUser: any): UserProfile {
   const userId = sessionUser.id;
   const storedUserData = typeof window !== "undefined" ? localStorage.getItem(`mailcraft_user_${userId}`) : null;
@@ -128,7 +156,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const saveUser = useCallback((newUser: UserProfile | null) => {
     setUser(newUser);
     if (newUser) {
-      // For mock mode, use generic key. For real mode, use user-specific key
       localStorage.setItem("mailcraft_user", JSON.stringify(newUser));
       if (!isMockMode && newUser.id) {
         localStorage.setItem(`mailcraft_user_${newUser.id}`, JSON.stringify({
@@ -146,29 +173,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     if (isMockMode) {
       await new Promise((res) => setTimeout(res, 400));
-      const storedUser = localStorage.getItem("mailcraft_user");
+      const accounts = getMockAccounts();
+      const match = accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase());
+      
       let loggedUser: UserProfile;
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          loggedUser = {
-            ...parsed,
-            email: email || "alex.engineer@example.com",
-            name: email ? email.split("@")[0] : "Demo User",
-          };
-        } catch {
-          loggedUser = {
-            ...defaultDemoUser,
-            email: email || "alex.engineer@example.com",
-            name: email ? email.split("@")[0] : "Demo User",
-          };
-        }
+      if (match) {
+        loggedUser = match.user;
       } else {
         loggedUser = {
-          ...defaultDemoUser,
-          email: email || "alex.engineer@example.com",
+          id: "usr_" + Math.random().toString(36).substring(2, 9),
+          email: email.trim() || "alex.engineer@example.com",
           name: email ? email.split("@")[0] : "Demo User",
+          plan: "free",
+          emailsGenerated: 0,
+          maxQuota: 10,
         };
+        saveMockAccount({ email: email.trim(), pass, user: loggedUser });
       }
       saveUser(loggedUser);
       setIsLoading(false);
@@ -176,11 +196,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password: pass,
       });
       setIsLoading(false);
-      if (error) throw error;
+      if (error) {
+        if (error.message?.toLowerCase().includes("email not confirmed")) {
+          throw new Error("Email not confirmed. Please check your inbox to confirm your account before logging in.");
+        }
+        throw error;
+      }
       return !!data.user;
     }
   };
@@ -191,23 +216,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise((res) => setTimeout(res, 400));
       const newUser: UserProfile = {
         id: "usr_" + Math.random().toString(36).substring(2, 9),
-        email,
-        name: name || "New Member",
+        email: email.trim(),
+        name: name.trim() || "New Member",
         plan: "free",
         emailsGenerated: 0,
         maxQuota: 10,
       };
+      saveMockAccount({ email: email.trim(), pass, user: newUser });
       saveUser(newUser);
       setIsLoading(false);
       return { success: true, requiresConfirmation: false };
     } else {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password: pass,
         options: {
           data: {
-            full_name: name,
+            full_name: name.trim(),
           },
         },
       });
